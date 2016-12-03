@@ -1,0 +1,18 @@
+{
+  "storage_dir": "/var/nvr",
+  "segment_length": 10,
+  "cameras": [
+    {
+      "name": "camera_1",
+      "uri": "rtsp://192.0.2.10/"
+    },
+    {
+      "name": "camera_2",
+      "uri": "rtsp://admin:12345@192.0.2.11/"
+    },
+    {
+      "name": "camera_3",
+      "uri": "rtsp://192.0.2.12/live/h264"
+    }
+  ]
+}
