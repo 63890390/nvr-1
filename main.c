@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include "types.h"
-#include "settings.h"
+#include "config.h"
 #include "nvr.h"
 
 Settings settings;
@@ -16,7 +16,11 @@ void main_shutdown(int sig) {
 
 void read_configuration(int sig) {
     (void) (sig);
-    read_config("config.ini", &settings);
+    signal(SIGHUP, read_configuration);
+    if (read_config("config.ini", &settings) < 0) {
+        printf("error reading config.ini\n");
+        return;
+    }
     settings.running = 1;
     printf("storage_dir: %s\n", settings.storage_dir);
     printf("segment_length: %i\n", settings.segment_length);

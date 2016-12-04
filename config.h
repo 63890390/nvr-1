@@ -1,5 +1,5 @@
-#ifndef NVR_SETTINGS_H
-#define NVR_SETTINGS_H
+#ifndef NVR_CONFIG_H
+#define NVR_CONFIG_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,4 +11,4 @@
 
 int read_config(char *config_file, Settings *settings);
 
-#endif //NVR_SETTINGS_H
+#endif //NVR_CONFIG_H

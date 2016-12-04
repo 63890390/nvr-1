@@ -1,4 +1,4 @@
-#include "settings.h"
+#include "config.h"
 
 char *_read_file(char *config_file) {
     FILE *fp;
@@ -42,6 +42,8 @@ int _read_json(char *config_file, Settings *settings) {
 
     jsmn_init(&parser);
     j = jsmn_parse(&parser, json, strlen(json), tokens, 256);
+    if (j < 0)
+        return j;
 
     for (i = 0; i < j; i++)
         if (_jsoneq(json, &tokens[i], "storage_dir") == 0) {
@@ -98,10 +100,12 @@ int _ini_handler(void *user, const char *section, const char *name, const char *
 }
 
 int _read_ini(char *config_file, Settings *settings) {
+    int r;
     IniHandlerParams data;
     data.settings = settings;
     data.curr_cam = 0;
-    ini_parse(config_file, _ini_handler, &data);
+    if ((r = ini_parse(config_file, _ini_handler, &data)) < 0)
+        return r;
     return 0;
 }
 
@@ -112,5 +116,5 @@ int read_config(char *config_file, Settings *settings) {
     else if (dot && !strcmp(dot, ".ini"))
         return _read_ini(config_file, settings);
     else
-        return -1;
+        return -10;
 }
