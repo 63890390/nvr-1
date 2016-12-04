@@ -15,7 +15,6 @@ extern "C" {
  *   o Other primitive: number, boolean (true/false) or null
  */
 typedef enum {
-    JSMN_UNDEFINED = 0,
     JSMN_OBJECT = 1,
     JSMN_ARRAY = 2,
     JSMN_STRING = 3,

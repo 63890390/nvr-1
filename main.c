@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <signal.h>
+#include "types.h"
+#include "settings.h"
 #include "nvr.h"
 
 Settings settings;
-Camera cameras[256];
 
 void main_shutdown(int sig) {
     (void) (sig);
@@ -15,7 +16,7 @@ void main_shutdown(int sig) {
 
 void read_configuration(int sig) {
     (void) (sig);
-    read_config("config.json", &settings, cameras);
+    read_config("config.ini", &settings);
     settings.running = 1;
     printf("storage_dir: %s\n", settings.storage_dir);
     printf("segment_length: %i\n", settings.segment_length);
@@ -42,9 +43,9 @@ int main(int argc, char **argv) {
     av_register_all();
     avformat_network_init();
 
-    while (strlen(cameras[camera_count].name) > 0) {
-        printf("camera \"%s\" \"%s\"\n", cameras[camera_count].name, cameras[camera_count].uri);
-        pthread_create(&threads[camera_count], NULL, record_thread, &cameras[camera_count]);
+    while (strlen(settings.cameras[camera_count].name) > 0) {
+        printf("camera \"%s\" \"%s\"\n", settings.cameras[camera_count].name, settings.cameras[camera_count].uri);
+        pthread_create(&threads[camera_count], NULL, record_thread, &settings.cameras[camera_count]);
         camera_count++;
     }
 
