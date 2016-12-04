@@ -38,6 +38,10 @@ int main(int argc, char **argv) {
     pthread_t threads[256];
     read_configuration(0);
 
+    av_log_set_level(AV_LOG_INFO);
+    av_register_all();
+    avformat_network_init();
+
     while (strlen(cameras[camera_count].name) > 0) {
         printf("camera \"%s\" \"%s\"\n", cameras[camera_count].name, cameras[camera_count].uri);
         pthread_create(&threads[camera_count], NULL, record_thread, &cameras[camera_count]);

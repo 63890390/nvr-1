@@ -13,14 +13,11 @@ int record(Camera *camera, Settings *settings) {
     char current_date[10], current_time[8], filename[256], dirname[256];
     double cur_time = 0.0, last_time = 0.0;
 
-    av_log_set_level(AV_LOG_INFO);
-    av_register_all();
-    avformat_network_init();
-
     av_dict_set(&input_options, "rtsp_transport", "tcp", 0);
     av_init_packet(&packet);
 
     printf("%s connecting\n", camera->name);
+    input_context = avformat_alloc_context();
     if ((ret = avformat_open_input(&input_context, camera->uri, NULL, &input_options)))
         return ret;
     if ((ret = avformat_find_stream_info(input_context, NULL)))
