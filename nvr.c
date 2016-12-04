@@ -9,9 +9,13 @@ int record(Camera *camera, Settings *settings) {
     int ret, video_index = -1, got_keyframe = 0;
     long last_pts = 0;
     time_t raw_time;
-    struct tm * time_info;
+    struct tm *time_info;
     char current_date[10], current_time[8], filename[256], dirname[256];
     double cur_time = 0.0, last_time = 0.0;
+
+    av_log_set_level(AV_LOG_INFO);
+    av_register_all();
+    avformat_network_init();
 
     av_dict_set(&input_options, "rtsp_transport", "tcp", 0);
     av_init_packet(&packet);
@@ -22,7 +26,7 @@ int record(Camera *camera, Settings *settings) {
     if ((ret = avformat_find_stream_info(input_context, NULL)))
         return ret;
     for (int i = 0; i < input_context->nb_streams; i++)
-        if (input_context->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (input_context->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             video_index = i;
             break;
         }
@@ -37,8 +41,10 @@ int record(Camera *camera, Settings *settings) {
     while (av_read_frame(input_context, &packet) >= 0 && settings->running) {
         if (packet.stream_index == video_index) {
             if (input_stream == NULL) {
-                input_stream = avformat_new_stream(output_context, input_context->streams[video_index]->codec->codec);
-                avcodec_copy_context(input_stream->codec, input_context->streams[video_index]->codec);
+                AVCodecContext *codec_context = avcodec_alloc_context3(NULL);
+                avcodec_parameters_to_context(codec_context, input_context->streams[video_index]->codecpar);
+                input_stream = avformat_new_stream(output_context, codec_context->codec);
+                avcodec_parameters_from_context(input_stream->codecpar, codec_context);
             }
             if (packet.flags & AV_PKT_FLAG_KEY & ~AV_PKT_FLAG_CORRUPT && packet.pts >= 0) {
                 if (!got_keyframe || cur_time - last_time >= settings->segment_length) {
