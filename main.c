@@ -6,6 +6,7 @@
 #include "config.h"
 #include "nvr.h"
 
+char *config_file = "config.ini";
 Settings settings;
 
 void main_shutdown(int sig) {
@@ -17,8 +18,8 @@ void main_shutdown(int sig) {
 void read_configuration(int sig) {
     (void) (sig);
     signal(SIGHUP, read_configuration);
-    if (read_config("config.ini", &settings) < 0) {
-        printf("error reading config.ini\n");
+    if (read_config(config_file, &settings) < 0) {
+        printf("error reading %s\n", config_file);
         return;
     }
     settings.running = 1;
@@ -35,12 +36,14 @@ void *record_thread(void *args) {
 int main(int argc, char **argv) {
     signal(SIGTERM, main_shutdown);
     signal(SIGINT, main_shutdown);
-    signal(SIGHUP, read_configuration);
 
     int thread, camera_count = 0;
     jsmn_parser parser;
     jsmn_init(&parser);
     pthread_t threads[256];
+
+    if (argc > 1)
+        config_file = argv[1];
     read_configuration(0);
 
     av_log_set_level(AV_LOG_INFO);

@@ -113,8 +113,6 @@ int read_config(char *config_file, Settings *settings) {
     char *dot = strrchr(config_file, '.');
     if (dot && !strcmp(dot, ".json"))
         return _read_json(config_file, settings);
-    else if (dot && !strcmp(dot, ".ini"))
+    else // if (dot && !strcmp(dot, ".ini"))
         return _read_ini(config_file, settings);
-    else
-        return -10;
 }
