@@ -19,7 +19,7 @@ void read_configuration(int sig) {
     (void) (sig);
     signal(SIGHUP, read_configuration);
     if (read_config(config_file, &settings) < 0) {
-        printf("error reading %s\n", config_file);
+        printf("error reading \"%s\"\n", config_file);
         return;
     }
     settings.running = 1;

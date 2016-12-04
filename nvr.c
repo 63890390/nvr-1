@@ -39,7 +39,6 @@ int record(Camera *camera, Settings *settings) {
     avformat_alloc_output_context2(&ocontext, NULL, "mp4", NULL);
 
     av_read_play(icontext);
-    printf("%s settings->running %d\n", camera->name, settings->running);
     while (av_read_frame(icontext, &packet) >= 0 && settings->running) {
         if (packet.stream_index == video_index) {
             if (istream == NULL) {
