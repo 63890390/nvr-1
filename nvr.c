@@ -8,9 +8,10 @@ int record(Camera *camera, Settings *settings) {
     AVPacket packet;
     int ret, video_index = -1;
     char got_init = 0, got_keyframe = 0, header_written = 0;
-    int64_t last_mux_dts = AV_NOPTS_VALUE;
+    int64_t i_last_dts = AV_NOPTS_VALUE;
+    int64_t o_start_dts = AV_NOPTS_VALUE;
+    int64_t o_last_dts = AV_NOPTS_VALUE;
     char current_date[10], current_time[8], filename[256], dirname[256];
-    double cur_time = 0.0, last_time = 0.0;
     time_t raw_time;
     struct tm *time_info;
 
@@ -37,32 +38,28 @@ int record(Camera *camera, Settings *settings) {
         return -1;
     }
 
-    avformat_alloc_output_context2(&ocontext, NULL, "mp4", NULL);
-
     av_read_play(icontext);
     while (av_read_frame(icontext, &packet) >= 0 && settings->running) {
         if (packet.stream_index != video_index)
             continue;
 
-        if (packet.pts == 0 && packet.dts == 0) {
+        if (packet.pts == 0 && packet.dts == 0)
             got_init = 1;
-            if (istream == NULL) {
-                AVCodecContext *codec_context = avcodec_alloc_context3(NULL);
-                avcodec_parameters_to_context(codec_context, icontext->streams[video_index]->codecpar);
-                istream = avformat_new_stream(ocontext, codec_context->codec);
-                avcodec_parameters_from_context(istream->codecpar, codec_context);
-            }
-        }
 
         if (got_init && packet.flags & AV_PKT_FLAG_KEY) {
             got_keyframe = 1;
-            if (!header_written || cur_time - last_time >= settings->segment_length) {
+            if (!header_written || o_last_dts >= settings->segment_length * 100000) {
                 if (header_written) {
                     av_write_trailer(ocontext);
                     avio_close(ocontext->pb);
                     header_written = 0;
                 }
-                last_time = cur_time;
+                avformat_free_context(ocontext);
+                avformat_alloc_output_context2(&ocontext, NULL, "mp4", NULL);
+                AVCodecContext *codec_context = avcodec_alloc_context3(NULL);
+                avcodec_parameters_to_context(codec_context, icontext->streams[video_index]->codecpar);
+                istream = avformat_new_stream(ocontext, codec_context->codec);
+                avcodec_parameters_from_context(istream->codecpar, codec_context);
                 time(&raw_time);
                 time_info = localtime(&raw_time);
                 strftime(current_date, 10, "%Y%m%d", time_info);
@@ -82,6 +79,11 @@ int record(Camera *camera, Settings *settings) {
                     printf("%s failed to write header to \"%s\" with code %d\n", camera->name, filename, ret);
                     break;
                 }
+                o_start_dts = av_rescale_q(
+                        packet.dts,
+                        icontext->streams[video_index]->time_base,
+                        ocontext->streams[0]->time_base
+                );
                 header_written = 1;
             }
         }
@@ -89,35 +91,35 @@ int record(Camera *camera, Settings *settings) {
         if (!got_keyframe)
             continue;
 
+        packet.stream_index = istream->index;
+
         if (packet.dts != AV_NOPTS_VALUE && packet.pts != AV_NOPTS_VALUE && packet.dts > packet.pts) {
-            packet.pts = packet.dts = packet.pts + packet.dts + last_mux_dts + 1
-                                      - MIN3(packet.pts, packet.dts, last_mux_dts + 1)
-                                      - MAX3(packet.pts, packet.dts, last_mux_dts + 1);
+            packet.pts = packet.dts = packet.pts + packet.dts + i_last_dts + 1
+                                      - MIN3(packet.pts, packet.dts, i_last_dts + 1)
+                                      - MAX3(packet.pts, packet.dts, i_last_dts + 1);
         }
-        if (packet.dts != AV_NOPTS_VALUE && last_mux_dts != AV_NOPTS_VALUE) {
-            int64_t max = last_mux_dts + 1;
+        if (packet.dts != AV_NOPTS_VALUE && i_last_dts != AV_NOPTS_VALUE) {
+            int64_t max = i_last_dts + 1;
             if (packet.dts < max) {
                 if (packet.pts >= packet.dts)
                     packet.pts = MAX(packet.pts, max);
                 packet.dts = max;
             }
         }
-        last_mux_dts = packet.dts;
-
-        packet.stream_index = istream->index;
+        i_last_dts = packet.dts;
 
         packet.pts = av_rescale_q(
                 packet.pts,
                 icontext->streams[video_index]->time_base,
                 ocontext->streams[0]->time_base
-        );
+        ) - o_start_dts;
         packet.dts = av_rescale_q(
                 packet.dts,
                 icontext->streams[video_index]->time_base,
                 ocontext->streams[0]->time_base
-        );
+        ) - o_start_dts;
+        o_last_dts = packet.dts;
 
-        cur_time = av_stream_get_end_pts(ocontext->streams[0]) * av_q2d(ocontext->streams[0]->time_base);
         if ((ret = av_write_frame(ocontext, &packet)) != 0) {
             printf("%s failed to write frame to \"%s\" with code %d\n", camera->name, filename, ret);
             break;
@@ -126,9 +128,10 @@ int record(Camera *camera, Settings *settings) {
         av_init_packet(&packet);
     }
     av_packet_unref(&packet);
-    if (header_written)
+    if (header_written) {
         av_write_trailer(ocontext);
-    avio_close(ocontext->pb);
+        avio_close(ocontext->pb);
+    }
     avformat_free_context(ocontext);
     avformat_free_context(icontext);
     printf("%s finished\n", camera->name);
