@@ -42,7 +42,7 @@ int record(Camera *camera, Settings *settings) {
         return -1;
     }
 
-    while (av_read_frame(icontext, &packet) >= 0 && settings->running) {
+    while (av_read_frame(icontext, &packet) >= 0 && camera->running) {
         if (packet.stream_index == ivideo_stream_index) {
             if (packet.flags & AV_PKT_FLAG_KEY && packet.pts != AV_NOPTS_VALUE && packet.duration >= 0) {
                 got_keyframe = 1;
@@ -50,6 +50,7 @@ int record(Camera *camera, Settings *settings) {
                     if (header_written) {
                         av_write_trailer(ocontext);
                         avio_close(ocontext->pb);
+                        camera->output_open = 0;
                     }
                     header_written = 0;
                     avformat_free_context(ocontext);
@@ -73,11 +74,10 @@ int record(Camera *camera, Settings *settings) {
                         printf("[%s] failed to open \"%s\" with code %d\n", camera->name, filename, ret);
                         break;
                     }
-                    printf("[%s] recording to \"%s\"\n", camera->name, filename);
+                    camera->output_open = 1;
+                    printf("[%s] writing to \"%s\"\n", camera->name, filename);
                     if ((ret = avformat_write_header(ocontext, NULL)) != 0) {
                         printf("[%s] failed to write header to \"%s\" with code %d\n", camera->name, filename, ret);
-                        av_write_trailer(ocontext);
-                        avio_close(ocontext->pb);
                         break;
                     }
                     header_written = 1;
@@ -135,10 +135,12 @@ int record(Camera *camera, Settings *settings) {
         av_write_trailer(ocontext);
         avio_close(ocontext->pb);
     }
+    camera->output_open = 0;
 
     avformat_free_context(icontext);
     avformat_free_context(ocontext);
 
+    camera->running = 0;
     printf("[%s] finished\n", camera->name);
     return 0;
 }

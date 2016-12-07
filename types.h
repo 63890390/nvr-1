@@ -4,10 +4,11 @@
 typedef struct {
     char uri[256];
     char name[256];
+    char running;
+    char output_open;
 } Camera;
 
 typedef struct {
-    int running;
     int segment_length;
     char storage_dir[256];
     Camera cameras[256];

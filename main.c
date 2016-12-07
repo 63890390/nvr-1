@@ -8,11 +8,18 @@
 
 char *config_file = "config.ini";
 Settings settings;
+pthread_t threads[256];
 
 void main_shutdown(int sig) {
     (void) (sig);
     printf("\rshutting down\n");
-    settings.running = 0;
+    for (int i = 0; i < 255; i++)
+        if (settings.cameras[i].running)
+            if (settings.cameras[i].output_open)
+                settings.cameras[i].running = 0;
+            else
+                pthread_cancel(threads[i]);
+    avformat_network_deinit();
 }
 
 void read_configuration(int sig) {
@@ -22,7 +29,6 @@ void read_configuration(int sig) {
         printf("error reading \"%s\"\n", config_file);
         return;
     }
-    settings.running = 1;
     printf("storage_dir: %s\n", settings.storage_dir);
     printf("segment_length: %i\n", settings.segment_length);
 }
@@ -40,7 +46,6 @@ int main(int argc, char **argv) {
     int thread, camera_count = 0;
     jsmn_parser parser;
     jsmn_init(&parser);
-    pthread_t threads[256];
 
     if (argc > 1)
         config_file = argv[1];
@@ -52,6 +57,7 @@ int main(int argc, char **argv) {
 
     while (strlen(settings.cameras[camera_count].name) > 0) {
         printf("camera \"%s\" \"%s\"\n", settings.cameras[camera_count].name, settings.cameras[camera_count].uri);
+        settings.cameras[camera_count].running = 1;
         pthread_create(&threads[camera_count], NULL, record_thread, &settings.cameras[camera_count]);
         camera_count++;
     }
