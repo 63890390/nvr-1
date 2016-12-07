@@ -2,11 +2,14 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 #include "types.h"
 #include "config.h"
 #include "nvr.h"
 
-char *config_file = "config.ini";
+#define CONFIG_FILE "config.ini"
+
+char *config_file = CONFIG_FILE;
 Settings settings;
 pthread_t threads[256];
 
@@ -35,7 +38,10 @@ void read_configuration(int sig) {
 
 void *record_thread(void *args) {
     Camera *cam = args;
-    record(cam, &settings);
+    while (cam->running) {
+        record(cam, &settings);
+        sleep((unsigned int) settings.retry_delay);
+    }
     return NULL;
 }
 

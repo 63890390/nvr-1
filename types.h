@@ -10,6 +10,7 @@ typedef struct {
 
 typedef struct {
     int segment_length;
+    int retry_delay;
     char storage_dir[256];
     Camera cameras[256];
 } Settings;

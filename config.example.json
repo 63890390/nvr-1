@@ -1,6 +1,7 @@
 {
   "storage_dir": "/var/nvr",
   "segment_length": 10,
+  "retry_delay": 2,
   "cameras": [
     {
       "name": "camera_1",

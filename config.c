@@ -1,5 +1,9 @@
 #include "config.h"
 
+#define DEFAULT_SEGMENT_LENGTH 0
+#define DEFAULT_RETRY_DELAY 10
+#define DEFAULT_STORAGE_DIR "."
+
 char *_read_file(char *config_file) {
     FILE *fp;
     size_t size;
@@ -50,14 +54,16 @@ int _read_json(char *config_file, Settings *settings) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             memcpy(settings->storage_dir, json + tokens[i + 1].start, size);
             settings->storage_dir[size] = '\0';
-        }
-
-    for (i = 0; i < j; i++)
-        if (_jsoneq(json, &tokens[i], "segment_length") == 0) {
+        } else if (_jsoneq(json, &tokens[i], "segment_length") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char sls[8];
             memcpy(&sls, json + tokens[i + 1].start, size);
             settings->segment_length = atoi(sls);
+        } else if (_jsoneq(json, &tokens[i], "retry_delay") == 0) {
+            size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
+            char rdl[8];
+            memcpy(&rdl, json + tokens[i + 1].start, size);
+            settings->retry_delay = atoi(rdl);
         }
 
     for (c = i = 0; i < j; i++)
@@ -67,7 +73,6 @@ int _read_json(char *config_file, Settings *settings) {
             settings->cameras[c].name[size] = '\0';
             c++;
         }
-
 
     for (c = i = 0; i < j; i++)
         if (_jsoneq(json, &tokens[i], "uri") == 0) {
@@ -87,10 +92,13 @@ typedef struct {
 int _ini_handler(void *user, const char *section, const char *name, const char *value) {
     IniHandlerParams *data = (IniHandlerParams *) user;
     Settings *settings = data->settings;
-    if (strcmp(section, "nvr") == 0 && strcmp(name, "storage_dir") == 0) {
-        strcpy(settings->storage_dir, value);
-    } else if (strcmp(section, "nvr") == 0 && strcmp(name, "segment_length") == 0) {
-        settings->segment_length = atoi(value);
+    if (strcmp(section, "nvr") == 0) {
+        if (strcmp(name, "storage_dir") == 0)
+            strcpy(settings->storage_dir, value);
+        else if (strcmp(name, "segment_length") == 0)
+            settings->segment_length = atoi(value);
+        else if (strcmp(name, "retry_delay") == 0)
+            settings->retry_delay = atoi(value);
     } else if (strcmp(section, "cameras") == 0) {
         strcpy(settings->cameras[data->curr_cam].name, name);
         strcpy(settings->cameras[data->curr_cam].uri, value);
@@ -110,6 +118,9 @@ int _read_ini(char *config_file, Settings *settings) {
 }
 
 int read_config(char *config_file, Settings *settings) {
+    settings->segment_length = DEFAULT_SEGMENT_LENGTH;
+    settings->retry_delay = DEFAULT_RETRY_DELAY;
+    sprintf(settings->storage_dir, DEFAULT_STORAGE_DIR);
     char *dot = strrchr(config_file, '.');
     if (dot && !strcmp(dot, ".json"))
         return _read_json(config_file, settings);

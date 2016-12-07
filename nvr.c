@@ -46,7 +46,8 @@ int record(Camera *camera, Settings *settings) {
         if (packet.stream_index == ivideo_stream_index) {
             if (packet.flags & AV_PKT_FLAG_KEY && packet.pts != AV_NOPTS_VALUE && packet.duration >= 0) {
                 got_keyframe = 1;
-                if (!header_written || o_last_dts >= settings->segment_length * 100000) {
+                if (!header_written ||
+                    (settings->segment_length > 0 && o_last_dts >= settings->segment_length * 100000)) {
                     if (header_written) {
                         av_write_trailer(ocontext);
                         avio_close(ocontext->pb);
