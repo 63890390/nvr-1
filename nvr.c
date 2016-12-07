@@ -136,8 +136,8 @@ int record(Camera *camera, Settings *settings) {
         avio_close(ocontext->pb);
     }
 
-    avformat_free_context(ocontext);
     avformat_free_context(icontext);
+    avformat_free_context(ocontext);
 
     printf("[%s] finished\n", camera->name);
     return 0;

@@ -59,5 +59,6 @@ int main(int argc, char **argv) {
     for (thread = 0; thread < camera_count; thread++)
         pthread_join(threads[thread], NULL);
 
+    avformat_network_deinit();
     return 0;
 }
