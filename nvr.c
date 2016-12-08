@@ -6,6 +6,7 @@ int record(Camera *camera, Settings *settings) {
     AVStream *istream = NULL;
     AVStream *ostream = NULL;
     AVFormatContext *ocontext = NULL;
+    AVCodecContext *codec_context = NULL;
     AVPacket packet;
     int ret, i;
     int ivideo_stream_index = -1;
@@ -23,11 +24,15 @@ int record(Camera *camera, Settings *settings) {
     icontext = avformat_alloc_context();
 
     printf("[%s] connecting\n", camera->name);
-    if ((ret = avformat_open_input(&icontext, camera->uri, NULL, &ioptions)) != 0) {
+    ret = avformat_open_input(&icontext, camera->uri, NULL, &ioptions);
+    av_dict_free(&ioptions);
+    if (ret  != 0) {
+        avformat_close_input(&icontext);
         printf("[%s] avformat_open_input failed with code %d\n", camera->name, ret);
         return -1;
     }
     if ((ret = avformat_find_stream_info(icontext, NULL)) != 0) {
+        avformat_close_input(&icontext);
         printf("[%s] avformat_find_stream_info failed with code %d\n", camera->name, ret);
         return -1;
     }
@@ -39,6 +44,7 @@ int record(Camera *camera, Settings *settings) {
         }
     if (ivideo_stream_index < 0) {
         printf("[%s] video stream not found\n", camera->name);
+        avformat_close_input(&icontext);
         return -1;
     }
 
@@ -56,10 +62,11 @@ int record(Camera *camera, Settings *settings) {
                     header_written = 0;
                     avformat_free_context(ocontext);
                     avformat_alloc_output_context2(&ocontext, NULL, "mp4", NULL);
-                    AVCodecContext *codec_context = avcodec_alloc_context3(NULL);
+                    codec_context = avcodec_alloc_context3(NULL);
                     avcodec_parameters_to_context(codec_context, istream->codecpar);
                     ostream = avformat_new_stream(ocontext, codec_context->codec);
                     avcodec_parameters_from_context(ostream->codecpar, codec_context);
+                    avcodec_free_context(&codec_context);
                     time(&raw_time);
                     time_info = localtime(&raw_time);
                     strftime(current_date, 10, "%Y%m%d", time_info);
@@ -138,10 +145,11 @@ int record(Camera *camera, Settings *settings) {
     }
     camera->output_open = 0;
 
-    avformat_free_context(icontext);
+    av_dict_free(&ioptions);
+
+    avformat_close_input(&icontext);
     avformat_free_context(ocontext);
 
-    camera->running = 0;
     printf("[%s] finished\n", camera->name);
     return 0;
 }

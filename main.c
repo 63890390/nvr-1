@@ -7,22 +7,26 @@
 #include "config.h"
 #include "nvr.h"
 
-#define CONFIG_FILE "config.ini"
+#ifndef NVR_CONFIG_FILE
+#define NVR_CONFIG_FILE "config.ini"
+#endif
 
-char *config_file = CONFIG_FILE;
+char *config_file = NVR_CONFIG_FILE;
 Settings settings;
+int camera_count = 0;
 pthread_t threads[256];
 
 void main_shutdown(int sig) {
     (void) (sig);
     printf("\rshutting down\n");
-    for (int i = 0; i < 255; i++)
-        if (settings.cameras[i].running)
-            if (settings.cameras[i].output_open)
-                settings.cameras[i].running = 0;
-            else
+    for (int i = 0; i < camera_count; i++)
+        if (settings.cameras[i].running) {
+            settings.cameras[i].running = 0;
+            /*
+            if (!settings.cameras[i].output_open)
                 pthread_cancel(threads[i]);
-    avformat_network_deinit();
+            */
+        }
 }
 
 void read_configuration(int sig) {
@@ -40,18 +44,19 @@ void *record_thread(void *args) {
     Camera *cam = args;
     while (cam->running) {
         record(cam, &settings);
-        sleep((unsigned int) settings.retry_delay);
+        if (cam->running)
+            sleep((unsigned int) settings.retry_delay);
     }
     return NULL;
 }
 
 int main(int argc, char **argv) {
-    signal(SIGTERM, main_shutdown);
-    signal(SIGINT, main_shutdown);
-
-    int thread, camera_count = 0;
+    int t;
     jsmn_parser parser;
     jsmn_init(&parser);
+
+    signal(SIGTERM, main_shutdown);
+    signal(SIGINT, main_shutdown);
 
     if (argc > 1)
         config_file = argv[1];
@@ -59,6 +64,7 @@ int main(int argc, char **argv) {
 
     av_log_set_level(AV_LOG_INFO);
     av_register_all();
+    avcodec_register_all();
     avformat_network_init();
 
     while (strlen(settings.cameras[camera_count].name) > 0) {
@@ -68,8 +74,8 @@ int main(int argc, char **argv) {
         camera_count++;
     }
 
-    for (thread = 0; thread < camera_count; thread++)
-        pthread_join(threads[thread], NULL);
+    for (t = 0; t < camera_count; t++)
+        pthread_join(threads[t], NULL);
 
     avformat_network_deinit();
     return 0;

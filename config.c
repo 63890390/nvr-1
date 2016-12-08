@@ -1,9 +1,5 @@
 #include "config.h"
 
-#define DEFAULT_SEGMENT_LENGTH 0
-#define DEFAULT_RETRY_DELAY 10
-#define DEFAULT_STORAGE_DIR "."
-
 char *_read_file(char *config_file) {
     FILE *fp;
     size_t size;
@@ -118,9 +114,9 @@ int _read_ini(char *config_file, Settings *settings) {
 }
 
 int read_config(char *config_file, Settings *settings) {
-    settings->segment_length = DEFAULT_SEGMENT_LENGTH;
-    settings->retry_delay = DEFAULT_RETRY_DELAY;
-    sprintf(settings->storage_dir, DEFAULT_STORAGE_DIR);
+    settings->segment_length = NVR_DEFAULT_SEGMENT_LENGTH;
+    settings->retry_delay = NVR_DEFAULT_RETRY_DELAY;
+    sprintf(settings->storage_dir, NVR_DEFAULT_STORAGE_DIR);
     char *dot = strrchr(config_file, '.');
     if (dot && !strcmp(dot, ".json"))
         return _read_json(config_file, settings);

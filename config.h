@@ -9,6 +9,16 @@
 #include "ini.h"
 #include "jsmn.h"
 
+#ifndef NVR_DEFAULT_SEGMENT_LENGTH
+#define NVR_DEFAULT_SEGMENT_LENGTH 0
+#endif
+#ifndef NVR_DEFAULT_RETRY_DELAY
+#define NVR_DEFAULT_RETRY_DELAY 10
+#endif
+#ifndef NVR_DEFAULT_STORAGE_DIR
+#define NVR_DEFAULT_STORAGE_DIR "."
+#endif
+
 int read_config(char *config_file, Settings *settings);
 
 #endif //NVR_CONFIG_H
