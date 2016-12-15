@@ -101,22 +101,22 @@ int read_json(char *config_file, Settings *settings) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char sls[8];
             memcpy(&sls, json + tokens[i + 1].start, size);
-            settings->segment_length = (unsigned int) (atoi(sls) > 0 ? atoi(sls) : NVR_DEFAULT_SEGMENT_LENGTH);
+            settings->segment_length = (unsigned int) (atoi(sls) >= 0 ? atoi(sls) : NVR_DEFAULT_SEGMENT_LENGTH);
         } else if (jsoneq(json, &tokens[i], "retry_delay") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char rdl[8];
             memcpy(&rdl, json + tokens[i + 1].start, size);
-            settings->retry_delay = (unsigned int) (atoi(rdl) > 0 ? atoi(rdl) : NVR_DEFAULT_RETRY_DELAY);
+            settings->retry_delay = (unsigned int) (atoi(rdl) >= 0 ? atoi(rdl) : NVR_DEFAULT_RETRY_DELAY);
         } else if (jsoneq(json, &tokens[i], "conn_timeout") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char cto[8];
             memcpy(&cto, json + tokens[i + 1].start, size);
-            settings->conn_timeout = (unsigned int) (atoi(cto) > 0 ? atoi(cto) : NVR_DEFAULT_CONN_TIMEOUT);
+            settings->conn_timeout = (unsigned int) (atoi(cto) >= 0 ? atoi(cto) : NVR_DEFAULT_CONN_TIMEOUT);
         } else if (jsoneq(json, &tokens[i], "recv_timeout") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char rto[8];
             memcpy(&rto, json + tokens[i + 1].start, size);
-            settings->recv_timeout = (unsigned int) (atoi(rto) > 0 ? atoi(rto) : NVR_DEFAULT_RECV_TIMEOUT);
+            settings->recv_timeout = (unsigned int) (atoi(rto) >= 0 ? atoi(rto) : NVR_DEFAULT_RECV_TIMEOUT);
         } else if (jsoneq(json, &tokens[i], "log_file") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             memcpy(settings->log_file, json + tokens[i + 1].start, size);
@@ -167,13 +167,13 @@ int ini_parser(void *user, const char *section, const char *name, const char *va
         if (strcmp(name, "storage_dir") == 0)
             strncpy(settings->storage_dir, value, sizeof(settings->storage_dir));
         else if (strcmp(name, "segment_length") == 0)
-            settings->segment_length = (unsigned int) (atoi(value) > 0 ? atoi(value) : NVR_DEFAULT_SEGMENT_LENGTH);
+            settings->segment_length = (unsigned int) (atoi(value) >= 0 ? atoi(value) : NVR_DEFAULT_SEGMENT_LENGTH);
         else if (strcmp(name, "retry_delay") == 0)
-            settings->retry_delay = (unsigned int) (atoi(value) > 0 ? atoi(value) : NVR_DEFAULT_RETRY_DELAY);
+            settings->retry_delay = (unsigned int) (atoi(value) >= 0 ? atoi(value) : NVR_DEFAULT_RETRY_DELAY);
         else if (strcmp(name, "conn_timeout") == 0)
-            settings->conn_timeout = (unsigned int) (atoi(value) > 0 ? atoi(value) : NVR_DEFAULT_CONN_TIMEOUT);
+            settings->conn_timeout = (unsigned int) (atoi(value) >= 0 ? atoi(value) : NVR_DEFAULT_CONN_TIMEOUT);
         else if (strcmp(name, "recv_timeout") == 0)
-            settings->recv_timeout = (unsigned int) (atoi(value) > 0 ? atoi(value) : NVR_DEFAULT_RECV_TIMEOUT);
+            settings->recv_timeout = (unsigned int) (atoi(value) >= 0 ? atoi(value) : NVR_DEFAULT_RECV_TIMEOUT);
         else if (strcmp(name, "log_file") == 0)
             strncpy(settings->log_file, value, sizeof(settings->log_file));
         else if (strcmp(name, "log_level") == 0)

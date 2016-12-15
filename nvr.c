@@ -18,8 +18,8 @@ void ffmpeg_deinit() {
 
 static int decode_interrupt_cb(void *arg) {
     NVRThreadParams *p = (NVRThreadParams *) arg;
-    int check_conn_timeout = !p->connected && p->conn_timeout;
-    int check_recv_timeout = p->connected && p->recv_timeout;
+    int check_conn_timeout = !p->connected && *p->conn_timeout;
+    int check_recv_timeout = p->connected && *p->recv_timeout;
 
     if (*p->running == 0)
         return 1;
