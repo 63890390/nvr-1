@@ -16,6 +16,10 @@ void ffmpeg_deinit() {
     avformat_network_deinit();
 }
 
+static int decode_interrupt_cb(void *arg) {
+    return ((Camera *) arg)->running == 0;
+}
+
 int record(Camera *camera, Settings *settings) {
     AVFormatContext *icontext = NULL;
     AVDictionary *ioptions = NULL;
@@ -40,19 +44,29 @@ int record(Camera *camera, Settings *settings) {
 
     av_init_packet(&packet);
     icontext = avformat_alloc_context();
+    icontext->interrupt_callback.callback = decode_interrupt_cb;
+    icontext->interrupt_callback.opaque = camera;
     icontext->protocol_whitelist = av_strdup("rtsp,rtp,tcp,udp");
 
     nvr_log(NVR_LOG_DEBUG, "connecting");
     ret = avformat_open_input(&icontext, camera->uri, NULL, &ioptions);
-    av_dict_free(&ioptions);
     if (ret != 0) {
         avformat_close_input(&icontext);
-        nvr_log(NVR_LOG_ERROR, "avformat_open_input failed with code %d", ret);
+        av_dict_free(&ioptions);
+        if (camera->running)
+            nvr_log(NVR_LOG_ERROR, "avformat_open_input failed with code %d", ret);
+        else
+            nvr_log(NVR_LOG_INFO, "stopped");
         return -1;
     }
+    nvr_log(NVR_LOG_DEBUG, "retrieving stream info");
     if ((ret = avformat_find_stream_info(icontext, NULL)) != 0) {
         avformat_close_input(&icontext);
-        nvr_log(NVR_LOG_ERROR, "avformat_find_stream_info failed with code %d", ret);
+        av_dict_free(&ioptions);
+        if (camera->running)
+            nvr_log(NVR_LOG_ERROR, "avformat_find_stream_info failed with code %d", ret);
+        else
+            nvr_log(NVR_LOG_INFO, "stopped");
         return -1;
     }
     for (unsigned int i = 0; i < icontext->nb_streams; i++)
@@ -62,12 +76,14 @@ int record(Camera *camera, Settings *settings) {
             break;
         }
     if (ivideo_stream_index < 0) {
-        nvr_log(NVR_LOG_ERROR, "video stream not found");
         avformat_close_input(&icontext);
+        av_dict_free(&ioptions);
+        nvr_log(NVR_LOG_ERROR, "video stream not found");
         return -1;
     }
 
-    nvr_log(NVR_LOG_INFO, "connected");
+    if (camera->running)
+        nvr_log(NVR_LOG_INFO, "connected");
 
     while (av_read_frame(icontext, &packet) >= 0 && camera->running) {
         if (packet.stream_index == ivideo_stream_index) {
