@@ -17,10 +17,43 @@ void ffmpeg_deinit() {
 }
 
 static int decode_interrupt_cb(void *arg) {
-    return ((Camera *) arg)->running == 0;
+    NVRThreadParams *p = (NVRThreadParams *) arg;
+    int check_conn_timeout = !p->connected && p->conn_timeout;
+    int check_recv_timeout = p->connected && p->recv_timeout;
+
+    if (*p->running == 0)
+        return 1;
+
+    if (check_conn_timeout || check_recv_timeout) {
+        struct timeval t2;
+        long delta_ms;
+        gettimeofday(&t2, NULL);
+        if (check_conn_timeout) {
+            delta_ms = (t2.tv_sec - p->start_time.tv_sec) * 1000;
+            delta_ms += (t2.tv_usec - p->start_time.tv_usec) / 1000;
+            if (delta_ms >= *p->conn_timeout) {
+                if (!p->failed) {
+                    nvr_log(NVR_LOG_ERROR, "connection timeout");
+                    p->failed = 1;
+                }
+                return 1;
+            }
+        } else /* if (check_recv_timeout) */ {
+            delta_ms = (t2.tv_sec - p->last_packet_time.tv_sec) * 1000;
+            delta_ms += (t2.tv_usec - p->last_packet_time.tv_usec) / 1000;
+            if (delta_ms >= *p->recv_timeout) {
+                if (!p->failed) {
+                    nvr_log(NVR_LOG_ERROR, "packet timeout");
+                    p->failed = 1;
+                }
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
-int record(Camera *camera, Settings *settings) {
+int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
     AVFormatContext *icontext = NULL;
     AVDictionary *ioptions = NULL;
     AVStream *istream = NULL;
@@ -38,6 +71,13 @@ int record(Camera *camera, Settings *settings) {
     time_t raw_time;
     struct tm *time_info;
 
+    params->conn_timeout = &settings->conn_timeout;
+    params->recv_timeout = &settings->recv_timeout;
+    params->running = &camera->running;
+    params->connected = 0;
+    params->failed = 0;
+    gettimeofday(&params->start_time, NULL);
+
     pthread_setspecific(0, camera->name);
 
     av_dict_set(&ioptions, "rtsp_transport", "tcp", 0);
@@ -45,7 +85,7 @@ int record(Camera *camera, Settings *settings) {
     av_init_packet(&packet);
     icontext = avformat_alloc_context();
     icontext->interrupt_callback.callback = decode_interrupt_cb;
-    icontext->interrupt_callback.opaque = camera;
+    icontext->interrupt_callback.opaque = params;
     icontext->protocol_whitelist = av_strdup("rtsp,rtp,tcp,udp");
 
     nvr_log(NVR_LOG_DEBUG, "connecting");
@@ -82,19 +122,29 @@ int record(Camera *camera, Settings *settings) {
         return -1;
     }
 
-    if (camera->running)
-        nvr_log(NVR_LOG_INFO, "connected");
+    if (params->failed) {
+        avformat_close_input(&icontext);
+        av_dict_free(&ioptions);
+        nvr_log(NVR_LOG_ERROR, "failed");
+        return -1;
+    }
 
-    while (av_read_frame(icontext, &packet) >= 0 && camera->running) {
+    if (camera->running && !params->failed) {
+        params->connected = 1;
+        gettimeofday(&params->last_packet_time, NULL);
+        nvr_log(NVR_LOG_INFO, "connected");
+    }
+
+    while (av_read_frame(icontext, &packet) >= 0 && camera->running && !params->failed) {
+        gettimeofday(&params->last_packet_time, NULL);
         if (packet.stream_index == ivideo_stream_index) {
             if (packet.flags & AV_PKT_FLAG_KEY && packet.pts != AV_NOPTS_VALUE && packet.duration >= 0) {
                 got_keyframe = 1;
                 if (!header_written ||
-                    (settings->segment_length > 0 && o_last_dts >= settings->segment_length * 100000)) {
+                    (settings->segment_length > 0 && o_last_dts >= settings->segment_length * 100)) {
                     if (header_written) {
                         av_write_trailer(ocontext);
                         avio_close(ocontext->pb);
-                        camera->output_open = 0;
                     }
                     header_written = 0;
                     avformat_free_context(ocontext);
@@ -121,7 +171,6 @@ int record(Camera *camera, Settings *settings) {
                                 "failed to open \"%s\" with code %d", filename, ret);
                         break;
                     }
-                    camera->output_open = 1;
                     nvr_log(NVR_LOG_DEBUG, "writing to \"%s\"", filename);
                     if ((ret = avformat_write_header(ocontext, NULL)) != 0) {
                         nvr_log(NVR_LOG_ERROR,
@@ -183,15 +232,16 @@ int record(Camera *camera, Settings *settings) {
         av_write_trailer(ocontext);
         avio_close(ocontext->pb);
     }
-    camera->output_open = 0;
 
     av_dict_free(&ioptions);
 
     avformat_close_input(&icontext);
     avformat_free_context(ocontext);
 
+    params->connected = 0;
+
     if (camera->running)
-        nvr_log(NVR_LOG_WARNING, "failed");
+        nvr_log(NVR_LOG_ERROR, "failed");
     else
         nvr_log(NVR_LOG_INFO, "stopped");
 

@@ -1,7 +1,9 @@
 {
   "storage_dir": "/var/nvr",
-  "segment_length": 10,
-  "retry_delay": 2,
+  "segment_length": 0,
+  "retry_delay": 10000,
+  "conn_timeout": 8000,
+  "recv_timeout": 4000,
   "log_file": "nvr.log",
   "log_level": "info",
   "ffmpeg_log_level": "info",

@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
-#include <unistd.h>
 #include "types.h"
 #include "config.h"
 #include "nvr.h"
@@ -41,9 +40,10 @@ void read_configuration(int sig) {
     nvr_log_close_file();
     nvr_log_open_file(settings.log_file);
     nvr_log(NVR_LOG_DEBUG, "storage_dir: %s", settings.storage_dir);
-    nvr_log(NVR_LOG_DEBUG, "segment_length: %i", settings.segment_length);
-    nvr_log(NVR_LOG_DEBUG, "retry_delay: %i", settings.retry_delay);
-    nvr_log(NVR_LOG_DEBUG, "camera_count: %i", settings.camera_count);
+    nvr_log(NVR_LOG_DEBUG, "segment_length: %d", settings.segment_length);
+    nvr_log(NVR_LOG_DEBUG, "retry_delay: %d", settings.retry_delay);
+    nvr_log(NVR_LOG_DEBUG, "conn_timeout: %d", settings.conn_timeout);
+    nvr_log(NVR_LOG_DEBUG, "recv_timeout: %d", settings.recv_timeout);
     nvr_log(NVR_LOG_DEBUG, "log_file: %s", settings.log_file);
     nvr_log(NVR_LOG_DEBUG, "log_level: %s", nvr_log_get_level_name(settings.log_level));
     nvr_log(NVR_LOG_DEBUG, "ffmpeg_log_level: %s", nvr_log_get_ffmpeg_level_name(settings.ffmpeg_log_level));
@@ -52,10 +52,18 @@ void read_configuration(int sig) {
 void *record_thread(void *args) {
     Camera *cam = args;
     while (cam->running) {
-        record(cam, &settings);
+        NVRThreadParams params;
+        record(cam, &settings, &params);
         if (cam->running) {
-            nvr_log(NVR_LOG_WARNING, "%s reconnecting in %d seconds", cam->name, settings.retry_delay);
-            sleep((unsigned int) settings.retry_delay);
+            nvr_log(NVR_LOG_WARNING, "%s reconnecting in %d milliseconds", cam->name, settings.retry_delay);
+            int elapsed = 0;
+            while (elapsed < settings.retry_delay && cam->running) {
+                struct timeval tv;
+                tv.tv_sec = 0;
+                tv.tv_usec = 10000;
+                select(0, NULL, NULL, NULL, &tv);
+                elapsed += 10;
+            }
         }
     }
     return NULL;
@@ -81,6 +89,7 @@ int main(int argc, char **argv) {
         pthread_create(&threads[settings.camera_count], NULL, record_thread, &settings.cameras[settings.camera_count]);
         settings.camera_count++;
     }
+    nvr_log(NVR_LOG_DEBUG, "camera_count: %d", settings.camera_count);
 
     for (unsigned int t = 0; t < settings.camera_count; t++)
         pthread_join(threads[t], NULL);

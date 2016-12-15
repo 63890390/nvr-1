@@ -8,11 +8,18 @@ Configuration:
     See the config.example.ini and config.example.json files for reference.
     Sections and directives:
         - nvr
-            - storage_dir: directory for storing video segments
-            - segment_length: video file length in seconds
-            - retry_delay: delay in seconds between reconnection attempts for a failed stream
+            - storage_dir: directory for storing video segments.
+            - segment_length: video file length in milliseconds - inaccurate because streams are split by keyframes;
+              set to 0 for a single segment
+            - retry_delay: delay between reconnection attempts for a failed stream in milliseconds;
+              set to 0 for immediate retry
+            - conn_timeout: connection timeout in milliseconds;
+              set to 0 to disable connection timeout
+            - recv_timeout: packet receive timeout in milliseconds;
+              stream will be considered failed and restarted after this timeout;
+              set to 0 to disable packet timeout
             - log_file, log_level, log_ffmpeg_level: see the Logging section
-        - cameras: key = value pairs of camera name and RTSP URI, username:password should be specified inline
+        - cameras: "key = value" pairs of camera name and RTSP URI; username:password should be specified inline
 
 Logging:
     Log messages are written to stdout and log_file if specified.
@@ -34,4 +41,3 @@ Signals:
 
 Known issues (TODOs):
     Camera list and recording threads are not being maintained on SIGHUP.
-    Connection calls are blocking without any timeouts.

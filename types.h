@@ -4,13 +4,14 @@
 typedef struct {
     char uri[256];
     char name[64];
-    int running;
-    int output_open;
+    unsigned int running;
 } Camera;
 
 typedef struct {
-    int segment_length;
-    int retry_delay;
+    unsigned int segment_length;
+    unsigned int retry_delay;
+    unsigned int conn_timeout;
+    unsigned int recv_timeout;
     unsigned int camera_count;
     int log_level;
     int ffmpeg_log_level;
