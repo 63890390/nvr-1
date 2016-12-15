@@ -1,5 +1,9 @@
 #include "utils.h"
 
+#include <errno.h>
+#include <linux/limits.h>
+#include <string.h>
+
 int mkdirs(const char *path, __mode_t mode) {
     const size_t len = strlen(path);
     char cur_path[PATH_MAX];

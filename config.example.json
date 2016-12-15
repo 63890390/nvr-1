@@ -2,6 +2,9 @@
   "storage_dir": "/var/nvr",
   "segment_length": 10,
   "retry_delay": 2,
+  "log_file": "nvr.log",
+  "log_level": "info",
+  "ffmpeg_log_level": "info",
   "cameras": [
     {
       "name": "camera_1",

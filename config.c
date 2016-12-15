@@ -1,6 +1,15 @@
 #include "config.h"
 
-char *_read_file(char *config_file) {
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <libavutil/log.h>
+#include "ini.h"
+#include "jsmn.h"
+#include "log.h"
+
+char *read_file(char *config_file) {
     FILE *fp;
     size_t size;
     char *buffer;
@@ -25,7 +34,7 @@ char *_read_file(char *config_file) {
     return buffer;
 }
 
-int _jsoneq(const char *json, jsmntok_t *tok, const char *s) {
+int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
     if (tok->type == JSMN_STRING &&
         strlen(s) == tok->end - tok->start &&
         strncmp(json + tok->start, s, (size_t) (tok->end - tok->start)) == 0) {
@@ -34,8 +43,46 @@ int _jsoneq(const char *json, jsmntok_t *tok, const char *s) {
     return -1;
 }
 
-int _read_json(char *config_file, Settings *settings) {
-    char *json = _read_file(config_file);
+int get_log_level(const char *name) {
+    if (strcasecmp(name, "debug") == 0)
+        return NVR_LOG_DEBUG;
+    else if (strcasecmp(name, "info") == 0)
+        return NVR_LOG_INFO;
+    else if (strcasecmp(name, "warning") == 0)
+        return NVR_LOG_WARNING;
+    else if (strcasecmp(name, "error") == 0)
+        return NVR_LOG_ERROR;
+    else if (strcasecmp(name, "fatal") == 0)
+        return NVR_LOG_FATAL;
+    else {
+        nvr_log(NVR_LOG_WARNING, "invalid log level: %s", name);
+        return get_log_level(NVR_DEFAULT_LOG_LEVEL);
+    }
+}
+
+int get_ffmpeg_log_level(const char *name) {
+    if (strcasecmp(name, "quiet") == 0)
+        return AV_LOG_QUIET;
+    else if (strcasecmp(name, "debug") == 0)
+        return AV_LOG_DEBUG;
+    else if (strcasecmp(name, "verbose") == 0)
+        return AV_LOG_VERBOSE;
+    else if (strcasecmp(name, "info") == 0)
+        return AV_LOG_INFO;
+    else if (strcasecmp(name, "warning") == 0)
+        return AV_LOG_WARNING;
+    else if (strcasecmp(name, "error") == 0)
+        return AV_LOG_ERROR;
+    else if (strcasecmp(name, "fatal") == 0)
+        return AV_LOG_FATAL;
+    else {
+        nvr_log(NVR_LOG_WARNING, "invalid ffmpeg log level: %s", name);
+        return get_ffmpeg_log_level(NVR_DEFAULT_FFMPEG_LOG_LEVEL);
+    }
+}
+
+int read_json(char *config_file, Settings *settings) {
+    char *json = read_file(config_file);
     jsmn_parser parser;
     jsmntok_t tokens[256];
     int i, c, j;
@@ -46,24 +93,40 @@ int _read_json(char *config_file, Settings *settings) {
         return j;
 
     for (i = 0; i < j; i++)
-        if (_jsoneq(json, &tokens[i], "storage_dir") == 0) {
+        if (jsoneq(json, &tokens[i], "storage_dir") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             memcpy(settings->storage_dir, json + tokens[i + 1].start, size);
             settings->storage_dir[size] = '\0';
-        } else if (_jsoneq(json, &tokens[i], "segment_length") == 0) {
+        } else if (jsoneq(json, &tokens[i], "segment_length") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char sls[8];
             memcpy(&sls, json + tokens[i + 1].start, size);
             settings->segment_length = atoi(sls);
-        } else if (_jsoneq(json, &tokens[i], "retry_delay") == 0) {
+        } else if (jsoneq(json, &tokens[i], "retry_delay") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             char rdl[8];
             memcpy(&rdl, json + tokens[i + 1].start, size);
             settings->retry_delay = atoi(rdl);
+        } else if (jsoneq(json, &tokens[i], "log_file") == 0) {
+            size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
+            memcpy(settings->log_file, json + tokens[i + 1].start, size);
+            settings->log_file[size] = '\0';
+        } else if (jsoneq(json, &tokens[i], "log_level") == 0) {
+            char level[8];
+            size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
+            memcpy(level, json + tokens[i + 1].start, size);
+            level[size] = '\0';
+            settings->log_level = get_log_level(level);
+        } else if (jsoneq(json, &tokens[i], "ffmpeg_log_level") == 0) {
+            char level[8];
+            size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
+            memcpy(level, json + tokens[i + 1].start, size);
+            level[size] = '\0';
+            settings->ffmpeg_log_level = get_ffmpeg_log_level(level);
         }
 
     for (c = i = 0; i < j; i++)
-        if (_jsoneq(json, &tokens[i], "name") == 0) {
+        if (jsoneq(json, &tokens[i], "name") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             memcpy(settings->cameras[c].name, json + tokens[i + 1].start, size);
             settings->cameras[c].name[size] = '\0';
@@ -71,12 +134,13 @@ int _read_json(char *config_file, Settings *settings) {
         }
 
     for (c = i = 0; i < j; i++)
-        if (_jsoneq(json, &tokens[i], "uri") == 0) {
+        if (jsoneq(json, &tokens[i], "uri") == 0) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             memcpy(&settings->cameras[c].uri, json + tokens[i + 1].start, size);
             settings->cameras[c].uri[size] = '\0';
             c++;
         }
+
     return 0;
 }
 
@@ -85,7 +149,7 @@ typedef struct {
     int curr_cam;
 } IniHandlerParams;
 
-int _ini_handler(void *user, const char *section, const char *name, const char *value) {
+int ini_parser(void *user, const char *section, const char *name, const char *value) {
     IniHandlerParams *data = (IniHandlerParams *) user;
     Settings *settings = data->settings;
     if (strcmp(section, "nvr") == 0) {
@@ -95,6 +159,12 @@ int _ini_handler(void *user, const char *section, const char *name, const char *
             settings->segment_length = atoi(value);
         else if (strcmp(name, "retry_delay") == 0)
             settings->retry_delay = atoi(value);
+        else if (strcmp(name, "log_file") == 0)
+            strcpy(settings->log_file, value);
+        else if (strcmp(name, "log_level") == 0)
+            settings->log_level = get_log_level(value);
+        else if (strcmp(name, "ffmpeg_log_level") == 0)
+            settings->ffmpeg_log_level = get_ffmpeg_log_level(value);
     } else if (strcmp(section, "cameras") == 0) {
         strcpy(settings->cameras[data->curr_cam].name, name);
         strcpy(settings->cameras[data->curr_cam].uri, value);
@@ -108,7 +178,7 @@ int _read_ini(char *config_file, Settings *settings) {
     IniHandlerParams data;
     data.settings = settings;
     data.curr_cam = 0;
-    if ((r = ini_parse(config_file, _ini_handler, &data)) < 0)
+    if ((r = ini_parse(config_file, ini_parser, &data)) < 0)
         return r;
     return 0;
 }
@@ -117,9 +187,12 @@ int read_config(char *config_file, Settings *settings) {
     settings->segment_length = NVR_DEFAULT_SEGMENT_LENGTH;
     settings->retry_delay = NVR_DEFAULT_RETRY_DELAY;
     sprintf(settings->storage_dir, NVR_DEFAULT_STORAGE_DIR);
+    sprintf(settings->log_file, NVR_DEFAULT_LOG_FILE);
+    settings->log_level = get_log_level(NVR_DEFAULT_LOG_LEVEL);
+    settings->ffmpeg_log_level = get_ffmpeg_log_level(NVR_DEFAULT_FFMPEG_LOG_LEVEL);
     char *dot = strrchr(config_file, '.');
     if (dot && !strcmp(dot, ".json"))
-        return _read_json(config_file, settings);
+        return read_json(config_file, settings);
     else // if (dot && !strcmp(dot, ".ini"))
         return _read_ini(config_file, settings);
 }

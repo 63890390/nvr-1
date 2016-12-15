@@ -1,5 +1,21 @@
 #include "nvr.h"
 
+#include <pthread.h>
+#include <libavformat/avformat.h>
+#include "utils.h"
+#include "log.h"
+
+void ffmpeg_init() {
+    av_log_set_callback(nvr_log_ffmpeg);
+    av_register_all();
+    avcodec_register_all();
+    avformat_network_init();
+}
+
+void ffmpeg_deinit() {
+    avformat_network_deinit();
+}
+
 int record(Camera *camera, Settings *settings) {
     AVFormatContext *icontext = NULL;
     AVDictionary *ioptions = NULL;
@@ -13,27 +29,30 @@ int record(Camera *camera, Settings *settings) {
     int64_t o_start_dts = AV_NOPTS_VALUE;
     int64_t o_last_dts = AV_NOPTS_VALUE;
     int64_t i_last_dts = 0;
-    char got_keyframe = 0, header_written = 0;
+    int got_keyframe = 0, header_written = 0;
     char current_date[10], current_time[8], filename[256], dirname[256];
     time_t raw_time;
     struct tm *time_info;
+
+    pthread_setspecific(0, camera->name);
 
     av_dict_set(&ioptions, "rtsp_transport", "tcp", 0);
 
     av_init_packet(&packet);
     icontext = avformat_alloc_context();
+    icontext->protocol_whitelist = av_strdup("rtsp,rtp,tcp,udp");
 
-    printf("[%s] connecting\n", camera->name);
+    nvr_log(NVR_LOG_DEBUG, "connecting");
     ret = avformat_open_input(&icontext, camera->uri, NULL, &ioptions);
     av_dict_free(&ioptions);
-    if (ret  != 0) {
+    if (ret != 0) {
         avformat_close_input(&icontext);
-        printf("[%s] avformat_open_input failed with code %d\n", camera->name, ret);
+        nvr_log(NVR_LOG_ERROR, "avformat_open_input failed with code %d", ret);
         return -1;
     }
     if ((ret = avformat_find_stream_info(icontext, NULL)) != 0) {
         avformat_close_input(&icontext);
-        printf("[%s] avformat_find_stream_info failed with code %d\n", camera->name, ret);
+        nvr_log(NVR_LOG_ERROR, "avformat_find_stream_info failed with code %d", ret);
         return -1;
     }
     for (i = 0; i < icontext->nb_streams; i++)
@@ -43,10 +62,12 @@ int record(Camera *camera, Settings *settings) {
             break;
         }
     if (ivideo_stream_index < 0) {
-        printf("[%s] video stream not found\n", camera->name);
+        nvr_log(NVR_LOG_ERROR, "video stream not found");
         avformat_close_input(&icontext);
         return -1;
     }
+
+    nvr_log(NVR_LOG_INFO, "connected");
 
     while (av_read_frame(icontext, &packet) >= 0 && camera->running) {
         if (packet.stream_index == ivideo_stream_index) {
@@ -75,17 +96,20 @@ int record(Camera *camera, Settings *settings) {
                     sprintf(filename, "%s/%s.mp4", dirname, current_time);
 
                     if ((ret = mkdirs(dirname, 0755)) != 0) {
-                        printf("[%s] failed to create directory \"%s\" with code %d\n", camera->name, dirname, ret);
+                        nvr_log(NVR_LOG_ERROR,
+                                "failed to create directory \"%s\" with code %d", dirname, ret);
                         break;
                     }
                     if ((ret = avio_open2(&ocontext->pb, filename, AVIO_FLAG_WRITE, NULL, NULL)) != 0) {
-                        printf("[%s] failed to open \"%s\" with code %d\n", camera->name, filename, ret);
+                        nvr_log(NVR_LOG_ERROR,
+                                "failed to open \"%s\" with code %d", filename, ret);
                         break;
                     }
                     camera->output_open = 1;
-                    printf("[%s] writing to \"%s\"\n", camera->name, filename);
+                    nvr_log(NVR_LOG_DEBUG, "writing to \"%s\"", filename);
                     if ((ret = avformat_write_header(ocontext, NULL)) != 0) {
-                        printf("[%s] failed to write header to \"%s\" with code %d\n", camera->name, filename, ret);
+                        nvr_log(NVR_LOG_ERROR,
+                                "failed to write header to \"%s\" with code %d", filename, ret);
                         break;
                     }
                     header_written = 1;
@@ -128,7 +152,7 @@ int record(Camera *camera, Settings *settings) {
                 o_last_dts = packet.dts;
 
                 if ((ret = av_interleaved_write_frame(ocontext, &packet)) != 0) {
-                    printf("[%s] failed to write frame to \"%s\" with code %d\n", camera->name, filename, ret);
+                    nvr_log(NVR_LOG_ERROR, "failed to write frame to \"%s\" with code %d", filename, ret);
                     av_packet_unref(&packet);
                     break;
                 }
@@ -150,6 +174,10 @@ int record(Camera *camera, Settings *settings) {
     avformat_close_input(&icontext);
     avformat_free_context(ocontext);
 
-    printf("[%s] finished\n", camera->name);
+    if (camera->running)
+        nvr_log(NVR_LOG_WARNING, "failed");
+    else
+        nvr_log(NVR_LOG_INFO, "stopped");
+
     return 0;
 }

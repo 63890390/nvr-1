@@ -1,13 +1,7 @@
 #ifndef NVR_CONFIG_H
 #define NVR_CONFIG_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <memory.h>
 #include "types.h"
-#include "ini.h"
-#include "jsmn.h"
 
 #ifndef NVR_DEFAULT_SEGMENT_LENGTH
 #define NVR_DEFAULT_SEGMENT_LENGTH 0
@@ -17,6 +11,15 @@
 #endif
 #ifndef NVR_DEFAULT_STORAGE_DIR
 #define NVR_DEFAULT_STORAGE_DIR "."
+#endif
+#ifndef NVR_DEFAULT_LOG_FILE
+#define NVR_DEFAULT_LOG_FILE "/dev/null"
+#endif
+#ifndef NVR_DEFAULT_LOG_LEVEL
+#define NVR_DEFAULT_LOG_LEVEL "info"
+#endif
+#ifndef NVR_DEFAULT_FFMPEG_LOG_LEVEL
+#define NVR_DEFAULT_FFMPEG_LOG_LEVEL "error"
 #endif
 
 int read_config(char *config_file, Settings *settings);

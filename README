@@ -1,0 +1,42 @@
+Simple RTSP H264 NVR application for Linux using FFmpeg.
+
+Signals:
+    On SIGHUP, the configuration file is being reread and the log file is being reopened.
+    On SIGINT (Ctrl + C) and SIGTERM, application is being shut down gracefully and MP4 trailers are being written.
+    On the second SIGINT or SIGTERM, application is terminated immediately.
+
+Configuration:
+    INI and JSON configuration file formats are supported.
+    Configuration file path may be passed as the first argument (e. g. nvr /etc/nvr.ini).
+    If the configuration file name ends with .json, it's treated as JSON and parsed accordingly.
+    By default, config.ini form the current directory is used.
+    See the config.example.ini and config.example.json files for reference.
+    Sections and directives:
+        - nvr
+            - storage_dir: directory for storing video segments
+            - segment_length: video file length in seconds
+            - retry_delay: delay in seconds between reconnection attempts for a failed stream
+            - log_file, log_level, log_ffmpeg_level: see the Logging section
+        - cameras: key = value pairs of camera name and RTSP URI, username:password should be specified inline
+
+Logging:
+    Log messages are written to stdout and log_file if specified.
+    There are 5 log levels: fatal, error, warning and debug, the minimal level is set with the log_level directive.
+    FFmpeg log has its own directive - ffmpeg_log_level and the levels are: panic, fatal, error, warning, info, verbose,
+    debug and quiet.
+    Log message consists of the following fields:
+        - local date and time in ISO 8601 format, including milliseconds and time zone offset
+        - [camera name or "main" for the master thread]
+        - [log level or "ffmpeg" for FFmpeg messages]
+        - the body of the message (in case of FFmpeg message it has two additional fields before the message):
+            - [AVClass name or empty string]
+            - [FFmpeg log level]
+
+Signals:
+    On SIGHUP, the configuration file is being reread and the log file is being reopened.
+    On SIGINT (Ctrl + C) and SIGTERM, application is being shut down gracefully and MP4 trailers are being written.
+    On the second SIGINT or SIGTERM, application is terminated immediately.
+
+Known issues (TODOs):
+    Camera list and recording threads are not being maintained on SIGHUP.
+    Connection calls are blocking without any timeouts.

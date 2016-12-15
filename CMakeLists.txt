@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -std=c99")
 
 set(TARGET_DIR "bin")
-set(SOURCE_FILES main.c jsmn.c jsmn.h utils.c utils.h nvr.c nvr.h config.c config.h ini.c ini.h types.h)
+set(SOURCE_FILES main.c jsmn.c jsmn.h utils.c utils.h nvr.c nvr.h config.c config.h ini.c ini.h types.h log.h log.c)
 
 add_executable(nvr ${SOURCE_FILES})
 
