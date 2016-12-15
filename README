@@ -1,10 +1,5 @@
 Simple RTSP H264 NVR application for Linux using FFmpeg.
 
-Signals:
-    On SIGHUP, the configuration file is being reread and the log file is being reopened.
-    On SIGINT (Ctrl + C) and SIGTERM, application is being shut down gracefully and MP4 trailers are being written.
-    On the second SIGINT or SIGTERM, application is terminated immediately.
-
 Configuration:
     INI and JSON configuration file formats are supported.
     Configuration file path may be passed as the first argument (e. g. nvr /etc/nvr.ini).
