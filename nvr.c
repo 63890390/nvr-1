@@ -53,7 +53,7 @@ static int decode_interrupt_cb(void *arg) {
     return 0;
 }
 
-int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
+void record(Camera *camera, Settings *settings, NVRThreadParams *params) {
     AVFormatContext *icontext = NULL;
     AVDictionary *ioptions = NULL;
     AVStream *istream = NULL;
@@ -63,6 +63,7 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
     AVPacket packet;
     int ret;
     int ivideo_stream_index = -1;
+    int ocontext_initialized = 0;
     int64_t o_start_dts = AV_NOPTS_VALUE;
     int64_t o_last_dts = AV_NOPTS_VALUE;
     int64_t i_last_dts = 0;
@@ -97,7 +98,7 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
             nvr_log(NVR_LOG_ERROR, "avformat_open_input failed with code %d", ret);
         else
             nvr_log(NVR_LOG_INFO, "stopped");
-        return -1;
+        return;
     }
     nvr_log(NVR_LOG_DEBUG, "retrieving stream info");
     if ((ret = avformat_find_stream_info(icontext, NULL)) != 0) {
@@ -107,7 +108,7 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
             nvr_log(NVR_LOG_ERROR, "avformat_find_stream_info failed with code %d", ret);
         else
             nvr_log(NVR_LOG_INFO, "stopped");
-        return -1;
+        return;
     }
     for (unsigned int i = 0; i < icontext->nb_streams; i++)
         if (icontext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -119,14 +120,14 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
         avformat_close_input(&icontext);
         av_dict_free(&ioptions);
         nvr_log(NVR_LOG_ERROR, "video stream not found");
-        return -1;
+        return;
     }
 
     if (params->failed) {
         avformat_close_input(&icontext);
         av_dict_free(&ioptions);
         nvr_log(NVR_LOG_ERROR, "failed");
-        return -1;
+        return;
     }
 
     if (camera->running && !params->failed) {
@@ -147,8 +148,11 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
                         avio_close(ocontext->pb);
                     }
                     header_written = 0;
-                    avformat_free_context(ocontext);
+                    if (ocontext_initialized) {
+                        avformat_free_context(ocontext);
+                    }
                     avformat_alloc_output_context2(&ocontext, NULL, "mp4", NULL);
+                    ocontext_initialized = 1;
                     codec_context = avcodec_alloc_context3(NULL);
                     avcodec_parameters_to_context(codec_context, istream->codecpar);
                     ostream = avformat_new_stream(ocontext, codec_context->codec);
@@ -236,7 +240,8 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
     av_dict_free(&ioptions);
 
     avformat_close_input(&icontext);
-    avformat_free_context(ocontext);
+    if (ocontext_initialized)
+        avformat_free_context(ocontext);
 
     params->connected = 0;
 
@@ -245,5 +250,5 @@ int record(Camera *camera, Settings *settings, NVRThreadParams *params) {
     else
         nvr_log(NVR_LOG_INFO, "stopped");
 
-    return 0;
+    return;
 }

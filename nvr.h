@@ -23,6 +23,6 @@ void ffmpeg_init();
 
 void ffmpeg_deinit();
 
-int record(Camera *camera, Settings *settings, NVRThreadParams *params);
+void record(Camera *camera, Settings *settings, NVRThreadParams *params);
 
 #endif //NVR_H

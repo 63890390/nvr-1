@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
+#include <stdlib.h>
 #include "types.h"
 #include "config.h"
 #include "nvr.h"
@@ -51,6 +52,7 @@ void read_configuration(int sig) {
 
 void *record_thread(void *args) {
     Camera *cam = args;
+    free(args);
     while (cam->running) {
         NVRThreadParams params;
         record(cam, &settings, &params);
