@@ -13,7 +13,7 @@ int mkdirs(const char *path, __mode_t mode) {
         errno = ENAMETOOLONG;
         return -1;
     }
-    strcpy(cur_path, path);
+    strncpy(cur_path, path, PATH_MAX);
 
     for (p = cur_path + 1; *p; p++)
         if (*p == '/') {

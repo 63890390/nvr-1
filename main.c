@@ -1,9 +1,6 @@
 #ifndef NVR_CONFIG_FILE
 #define NVR_CONFIG_FILE "config.ini"
 #endif
-#ifndef NVR_MAX_CAMERAS
-#define NVR_MAX_CAMERAS 1024
-#endif
 
 #include <pthread.h>
 #include <signal.h>
@@ -16,12 +13,12 @@
 
 char *config_file = NVR_CONFIG_FILE;
 Settings settings;
-pthread_t threads[2048];
+pthread_t threads[sizeof(settings.cameras)];
 
 void main_shutdown(int sig) {
     (void) (sig);
     nvr_log(NVR_LOG_INFO, "shutting down");
-    for (int i = 0; i < settings.camera_count; i++)
+    for (unsigned int i = 0; i < settings.camera_count; i++)
         if (settings.cameras[i].running) {
             settings.cameras[i].running = 0;
             /*
@@ -76,7 +73,8 @@ int main(int argc, char **argv) {
     read_configuration(0);
     ffmpeg_init();
 
-    while (strlen(settings.cameras[settings.camera_count].name) > 0 && settings.camera_count < 1024) {
+    while (strlen(settings.cameras[settings.camera_count].name) > 0 &&
+           settings.camera_count < sizeof(settings.cameras)) {
         nvr_log(NVR_LOG_DEBUG,
                 "%s %s", settings.cameras[settings.camera_count].name, settings.cameras[settings.camera_count].uri);
         settings.cameras[settings.camera_count].running = 1;
@@ -84,7 +82,7 @@ int main(int argc, char **argv) {
         settings.camera_count++;
     }
 
-    for (int t = 0; t < settings.camera_count; t++)
+    for (unsigned int t = 0; t < settings.camera_count; t++)
         pthread_join(threads[t], NULL);
 
     ffmpeg_deinit();

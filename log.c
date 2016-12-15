@@ -61,16 +61,16 @@ void nvr_vlog(const int level, const char *format, va_list vl) {
         return;
     }
     time_t now;
-    char date_str[64];
-    char time_str[64];
-    char msec_str[64];
-    char timezone[64];
-    char iso_date[64];
+    char date_str[11];
+    char time_str[9];
+    char msec_str[4];
+    char timezone[6];
+    char iso_date[29];
     char stderr_format[2048];
     char file_format[2048];
     struct timeval time_now;
-    va_list vl1 = {};
-    va_list vl2 = {};
+    va_list vl1 = {{0}};
+    va_list vl2 = {{0}};
 
     va_copy(vl1, vl);
     va_copy(vl2, vl);
@@ -84,9 +84,9 @@ void nvr_vlog(const int level, const char *format, va_list vl) {
     sprintf(msec_str, "%03d", (int) time_now.tv_usec / 1000);
     sprintf(iso_date, "%sT%s.%s%s", date_str, time_str, msec_str, timezone);
 
-    sprintf(stderr_format, "\r%s [%s] [%s] %s\n",
+    snprintf(stderr_format, sizeof(stderr_format), "\r%s [%s] [%s] %s\n",
             iso_date, (char *) pthread_getspecific(0), nvr_log_get_level_name(level), format);
-    sprintf(file_format, "%s [%s] [%s] %s\n",
+    snprintf(file_format, sizeof(file_format), "%s [%s] [%s] %s\n",
             iso_date, (char *) pthread_getspecific(0), nvr_log_get_level_name(level), format);
     vfprintf(stderr, stderr_format, vl1);
     if (nvr_log_fp != NULL) {
@@ -104,14 +104,14 @@ void nvr_log(const int level, const char *fmt, ...) {
 }
 
 void nvr_log_ffmpeg(void *avcl, int level, const char *fmt, va_list vl) {
-    char nvr_format[2048];
-    char class_name[64] = "";
+    char nvr_format[1024];
+    char class_name[32] = "";
     AVClass *avc = avcl ? *(AVClass **) avcl : NULL;
     if (level > ffmpeg_log_level)
         return;
     if (avc)
-        strcpy(class_name, avc->class_name);
-    vsprintf(nvr_format, fmt, vl);
+        snprintf(class_name, sizeof(class_name), avc->class_name);
+    vsnprintf(nvr_format, sizeof(nvr_format), fmt, vl);
     nvr_log(NVR_LOG_FFMPEG, "[%s] [%s] %s", class_name, nvr_log_get_ffmpeg_level_name(level), strtok(nvr_format, "\n"));
 }
 

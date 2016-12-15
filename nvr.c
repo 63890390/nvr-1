@@ -24,13 +24,13 @@ int record(Camera *camera, Settings *settings) {
     AVFormatContext *ocontext = NULL;
     AVCodecContext *codec_context = NULL;
     AVPacket packet;
-    int ret, i;
+    int ret;
     int ivideo_stream_index = -1;
     int64_t o_start_dts = AV_NOPTS_VALUE;
     int64_t o_last_dts = AV_NOPTS_VALUE;
     int64_t i_last_dts = 0;
     int got_keyframe = 0, header_written = 0;
-    char current_date[10], current_time[8], filename[256], dirname[256];
+    char current_date[9], current_time[7], dirname[1024], filename[sizeof(dirname) + 64];
     time_t raw_time;
     struct tm *time_info;
 
@@ -55,7 +55,7 @@ int record(Camera *camera, Settings *settings) {
         nvr_log(NVR_LOG_ERROR, "avformat_find_stream_info failed with code %d", ret);
         return -1;
     }
-    for (i = 0; i < icontext->nb_streams; i++)
+    for (unsigned int i = 0; i < icontext->nb_streams; i++)
         if (icontext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             ivideo_stream_index = i;
             istream = icontext->streams[ivideo_stream_index];
@@ -90,10 +90,10 @@ int record(Camera *camera, Settings *settings) {
                     avcodec_free_context(&codec_context);
                     time(&raw_time);
                     time_info = localtime(&raw_time);
-                    strftime(current_date, 10, "%Y%m%d", time_info);
-                    strftime(current_time, 8, "%H%M%S", time_info);
-                    sprintf(dirname, "%s/%s/%s", settings->storage_dir, current_date, camera->name);
-                    sprintf(filename, "%s/%s.mp4", dirname, current_time);
+                    strftime(current_date, sizeof(current_date), "%Y%m%d", time_info);
+                    strftime(current_time, sizeof(current_time), "%H%M%S", time_info);
+                    snprintf(dirname, sizeof(dirname), "%s/%s/%s", settings->storage_dir, current_date, camera->name);
+                    snprintf(filename, sizeof(filename), "%s/%s.mp4", dirname, current_time);
 
                     if ((ret = mkdirs(dirname, 0755)) != 0) {
                         nvr_log(NVR_LOG_ERROR,

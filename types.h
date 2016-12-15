@@ -11,11 +11,11 @@ typedef struct {
 typedef struct {
     int segment_length;
     int retry_delay;
-    int camera_count;
+    unsigned int camera_count;
     int log_level;
     int ffmpeg_log_level;
-    char storage_dir[256];
-    char log_file[256];
+    char storage_dir[1024];
+    char log_file[1024];
     Camera cameras[1024];
 } Settings;
 

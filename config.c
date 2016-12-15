@@ -36,7 +36,7 @@ char *read_file(char *config_file) {
 
 int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
     if (tok->type == JSMN_STRING &&
-        strlen(s) == tok->end - tok->start &&
+        strlen(s) == (unsigned int) (tok->end - tok->start) &&
         strncmp(json + tok->start, s, (size_t) (tok->end - tok->start)) == 0) {
         return 0;
     }
@@ -88,7 +88,7 @@ int read_json(char *config_file, Settings *settings) {
     int i, c, j;
 
     jsmn_init(&parser);
-    j = jsmn_parse(&parser, json, strlen(json), tokens, 256);
+    j = jsmn_parse(&parser, json, strlen(json), tokens, sizeof(tokens));
     if (j < 0)
         return j;
 
@@ -154,26 +154,26 @@ int ini_parser(void *user, const char *section, const char *name, const char *va
     Settings *settings = data->settings;
     if (strcmp(section, "nvr") == 0) {
         if (strcmp(name, "storage_dir") == 0)
-            strcpy(settings->storage_dir, value);
+            strncpy(settings->storage_dir, value, sizeof(settings->storage_dir));
         else if (strcmp(name, "segment_length") == 0)
             settings->segment_length = atoi(value);
         else if (strcmp(name, "retry_delay") == 0)
             settings->retry_delay = atoi(value);
         else if (strcmp(name, "log_file") == 0)
-            strcpy(settings->log_file, value);
+            strncpy(settings->log_file, value, sizeof(settings->log_file));
         else if (strcmp(name, "log_level") == 0)
             settings->log_level = get_log_level(value);
         else if (strcmp(name, "ffmpeg_log_level") == 0)
             settings->ffmpeg_log_level = get_ffmpeg_log_level(value);
     } else if (strcmp(section, "cameras") == 0) {
-        strcpy(settings->cameras[data->curr_cam].name, name);
-        strcpy(settings->cameras[data->curr_cam].uri, value);
+        strncpy(settings->cameras[data->curr_cam].name, name, sizeof(settings->cameras[data->curr_cam].name));
+        strncpy(settings->cameras[data->curr_cam].uri, value, sizeof(settings->cameras[data->curr_cam].uri));
         data->curr_cam++;
     }
     return 0;
 }
 
-int _read_ini(char *config_file, Settings *settings) {
+int read_ini(char *config_file, Settings *settings) {
     int r;
     IniHandlerParams data;
     data.settings = settings;
@@ -186,13 +186,13 @@ int _read_ini(char *config_file, Settings *settings) {
 int read_config(char *config_file, Settings *settings) {
     settings->segment_length = NVR_DEFAULT_SEGMENT_LENGTH;
     settings->retry_delay = NVR_DEFAULT_RETRY_DELAY;
-    sprintf(settings->storage_dir, NVR_DEFAULT_STORAGE_DIR);
-    sprintf(settings->log_file, NVR_DEFAULT_LOG_FILE);
+    strncpy(settings->storage_dir, NVR_DEFAULT_STORAGE_DIR, sizeof(settings->storage_dir));
+    strncpy(settings->log_file, NVR_DEFAULT_LOG_FILE, sizeof(settings->log_file));
     settings->log_level = get_log_level(NVR_DEFAULT_LOG_LEVEL);
     settings->ffmpeg_log_level = get_ffmpeg_log_level(NVR_DEFAULT_FFMPEG_LOG_LEVEL);
-    char *dot = strrchr(config_file, '.');
-    if (dot && !strcmp(dot, ".json"))
+    char *ext = strrchr(config_file, '.');
+    if (ext && !strcmp(ext, ".json"))
         return read_json(config_file, settings);
-    else // if (dot && !strcmp(dot, ".ini"))
-        return _read_ini(config_file, settings);
+    else // if (ext && !strcmp(ext, ".ini"))
+        return read_ini(config_file, settings);
 }
