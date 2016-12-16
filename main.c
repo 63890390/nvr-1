@@ -19,13 +19,8 @@ void main_shutdown(int sig) {
     (void) (sig);
     nvr_log(NVR_LOG_INFO, "shutting down");
     for (unsigned int i = 0; i < settings.camera_count; i++)
-        if (settings.cameras[i].running) {
+        if (settings.cameras[i].running)
             settings.cameras[i].running = 0;
-            /*
-            if (!settings.cameras[i].output_open)
-                pthread_cancel(threads[i]);
-            */
-        }
 }
 
 void read_configuration(int sig) {
