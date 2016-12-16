@@ -78,9 +78,9 @@ void nvr_vlog(const int level, const char *format, va_list vl) {
     time(&now);
     gettimeofday(&time_now, NULL);
 
-    strftime(date_str, sizeof date_str, "%F", localtime(&now));
-    strftime(time_str, sizeof time_str, "%T", localtime(&now));
-    strftime(timezone, sizeof timezone, "%z", localtime(&now));
+    strftime(date_str, sizeof(date_str), "%F", localtime(&now));
+    strftime(time_str, sizeof(time_str), "%T", localtime(&now));
+    strftime(timezone, sizeof(timezone), "%z", localtime(&now));
     sprintf(msec_str, "%03d", (int) time_now.tv_usec / 1000);
     sprintf(iso_date, "%sT%s.%s%s", date_str, time_str, msec_str, timezone);
 

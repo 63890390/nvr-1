@@ -140,7 +140,6 @@ int read_json(char *config_file, Settings *settings) {
             size_t size = (size_t) (tokens[i + 1].end - tokens[i + 1].start);
             memcpy(settings->cameras[c].name, json + tokens[i + 1].start, size);
             settings->cameras[c].name[size] = '\0';
-            settings->cameras[c].running = 0;
             c++;
         }
 
@@ -183,7 +182,6 @@ int ini_parser(void *user, const char *section, const char *name, const char *va
     } else if (strcmp(section, "cameras") == 0) {
         strncpy(settings->cameras[data->curr_cam].name, name, sizeof(settings->cameras[data->curr_cam].name));
         strncpy(settings->cameras[data->curr_cam].uri, value, sizeof(settings->cameras[data->curr_cam].uri));
-        settings->cameras[data->curr_cam].running = 0;
         data->curr_cam++;
     }
     return 0;
@@ -208,6 +206,10 @@ int read_config(char *config_file, Settings *settings) {
     strncpy(settings->log_file, NVR_DEFAULT_LOG_FILE, sizeof(settings->log_file));
     settings->log_level = get_log_level(NVR_DEFAULT_LOG_LEVEL);
     settings->ffmpeg_log_level = get_ffmpeg_log_level(NVR_DEFAULT_FFMPEG_LOG_LEVEL);
+    for (int i = 0; i < sizeof(settings->cameras) / sizeof(*settings->cameras); i++) {
+        strncpy(settings->cameras[i].name, "", sizeof(settings->cameras[i].name));
+        strncpy(settings->cameras[i].uri, "", sizeof(settings->cameras[i].uri));
+    }
     char *ext = strrchr(config_file, '.');
     if (ext && !strcmp(ext, ".json"))
         return read_json(config_file, settings);
