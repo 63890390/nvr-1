@@ -38,6 +38,3 @@ Signals:
     On SIGHUP, the configuration file is being reread and the log file is being reopened.
     On SIGINT (Ctrl + C) and SIGTERM, application is being shut down gracefully and MP4 trailers are being written.
     On the second SIGINT or SIGTERM, application is terminated immediately.
-
-Known issues (TODOs):
-    Camera list and recording threads are not being maintained on SIGHUP.
