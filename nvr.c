@@ -1,6 +1,5 @@
 #include "nvr.h"
 
-#include <pthread.h>
 #include <libavformat/avformat.h>
 #include "utils.h"
 #include "log.h"
@@ -78,8 +77,6 @@ void record(Camera *camera, Settings *settings, NVRThreadParams *params) {
     params->connected = 0;
     params->failed = 0;
     gettimeofday(&params->start_time, NULL);
-
-    pthread_setspecific(0, camera->name);
 
     av_dict_set(&ioptions, "rtsp_transport", "tcp", 0);
 

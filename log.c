@@ -1,6 +1,5 @@
 #include "log.h"
 
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -11,6 +10,7 @@ FILE *nvr_log_fp;
 int nvr_log_level = NVR_LOG_DEBUG;
 int ffmpeg_log_level = AV_LOG_DEBUG;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_key_t thread_name_key;
 
 const char *nvr_log_get_ffmpeg_level_name(int level) {
     switch (level) {
@@ -54,6 +54,10 @@ const char *nvr_log_get_level_name(int level) {
     }
 }
 
+void nvr_log_set_thread_name_key(const pthread_key_t key) {
+    thread_name_key = key;
+}
+
 void nvr_vlog(const int level, const char *format, va_list vl) {
     pthread_mutex_lock(&log_lock);
     if (level > nvr_log_level) {
@@ -85,9 +89,9 @@ void nvr_vlog(const int level, const char *format, va_list vl) {
     sprintf(iso_date, "%sT%s.%s%s", date_str, time_str, msec_str, timezone);
 
     snprintf(stderr_format, sizeof(stderr_format), "\r%s [%s] [%s] %s\n",
-            iso_date, (char *) pthread_getspecific(0), nvr_log_get_level_name(level), format);
+            iso_date, (char *) pthread_getspecific(thread_name_key), nvr_log_get_level_name(level), format);
     snprintf(file_format, sizeof(file_format), "%s [%s] [%s] %s\n",
-            iso_date, (char *) pthread_getspecific(0), nvr_log_get_level_name(level), format);
+            iso_date, (char *) pthread_getspecific(thread_name_key), nvr_log_get_level_name(level), format);
     vfprintf(stderr, stderr_format, vl1);
     if (nvr_log_fp != NULL) {
         vfprintf(nvr_log_fp, file_format, vl2);

@@ -2,6 +2,7 @@
 #define NVR_LOG_H
 
 #include <stdarg.h>
+#include <pthread.h>
 
 #define NVR_LOG_FFMPEG -10
 #define NVR_LOG_FATAL 0
@@ -9,6 +10,8 @@
 #define NVR_LOG_WARNING 2
 #define NVR_LOG_INFO 3
 #define NVR_LOG_DEBUG 4
+
+void nvr_log_set_thread_name_key(const pthread_key_t key);
 
 void nvr_vlog(const int level, const char *format, va_list vl);
 

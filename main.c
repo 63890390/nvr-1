@@ -16,6 +16,7 @@ int running = 1;
 Settings settings;
 int camera_count = 0;
 Camera curr_cams[sizeof(settings.cameras) / sizeof(*settings.cameras)];
+pthread_key_t thread_name_key;
 
 void main_shutdown(int sig) {
     (void) (sig);
@@ -30,6 +31,7 @@ void *record_thread(void *args) {
     Camera *cam = args;
     while (cam->running) {
         NVRThreadParams params;
+        pthread_setspecific(thread_name_key, cam->name);
         record(cam, &settings, &params);
         if (cam->running) {
             nvr_log(NVR_LOG_WARNING, "%s reconnecting in %d milliseconds", cam->name, settings.retry_delay);
@@ -115,6 +117,7 @@ void read_configuration(int sig) {
         nvr_log(NVR_LOG_ERROR, "error reading \"%s\"", config_file);
         return;
     }
+    nvr_log_set_thread_name_key(thread_name_key);
     nvr_log_set_level(settings.log_level);
     nvr_log_set_ffmpeg_level(settings.ffmpeg_log_level);
     nvr_log_close_file();
@@ -140,7 +143,9 @@ int main(int argc, char **argv) {
     signal(SIGTERM, main_shutdown);
     signal(SIGINT, main_shutdown);
 
-    pthread_setspecific(0, "main");
+    pthread_key_create(&thread_name_key, NULL);
+    pthread_setspecific(thread_name_key, "main");
+
     nvr_log(NVR_LOG_INFO, "starting");
 
     if (argc > 1)
