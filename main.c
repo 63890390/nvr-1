@@ -123,6 +123,9 @@ void read_configuration(int sig) {
     nvr_log_close_file();
     nvr_log_open_file(settings.log_file);
 
+    if (sig == 0)
+        nvr_log(NVR_LOG_INFO, "starting");
+
     nvr_log(NVR_LOG_DEBUG, "storage_dir: %s", settings.storage_dir);
     nvr_log(NVR_LOG_DEBUG, "segment_length: %d", settings.segment_length);
     nvr_log(NVR_LOG_DEBUG, "retry_delay: %d", settings.retry_delay);
@@ -145,8 +148,6 @@ int main(int argc, char **argv) {
 
     pthread_key_create(&thread_name_key, NULL);
     pthread_setspecific(thread_name_key, "main");
-
-    nvr_log(NVR_LOG_INFO, "starting");
 
     if (argc > 1)
         config_file = argv[1];
